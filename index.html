@@ -1684,7 +1684,6 @@ function _buildTitleSigns(W,H,gnd){
 let _titleTime=0; 
 function titleLoop(ts){
   if(ts&&ts-titleLastTime<16){titleRaf=requestAnimationFrame(titleLoop);return;}
-  pollGamepads();
   const dt=ts&&titleLastTime?Math.min(ts-titleLastTime,50):16;
   if(ts)titleLastTime=ts;titleFrame++;
   _titleTime+=dt;
@@ -1844,23 +1843,8 @@ function buildPCards(){
   const kDisp=k=>({ArrowLeft:'←',ArrowRight:'→',ArrowUp:'↑',ArrowDown:'↓',Enter:'↵','+':'+'}[k]||k.toUpperCase());
   PDEFS.forEach((pd,i)=>{
     const lp=lobby.players[i];const k=pd.keys;
-    const gpIdx=gamepadAssignments[i];
-    const hasGp=gpIdx!==null;
-    // Show controller icon if assigned, else keyboard keys
-    let moveRow;
-    if(lp.type==='human'){
-      if(hasGp){
-        moveRow=`<div style="display:flex;align-items:center;gap:5px;justify-content:center;">
-          <span style="font-size:1rem;">🎮</span>
-          <span style="font-family:'Baloo 2',cursive;font-size:.55rem;font-weight:900;letter-spacing:2px;color:rgba(255,255,255,.6);">CTRL ${gpIdx+1}</span>
-        </div>`;
-      } else {
-        const keyChip=t=>`<span style="display:inline-flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:.5rem;font-weight:700;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);border-radius:5px;padding:2px 5px;color:#fff;min-width:18px;">${t}</span>`;
-        moveRow=`<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap;justify-content:center;">${keyChip(kDisp(k.left))}${keyChip(kDisp(k.up))}${keyChip(kDisp(k.right))}${keyChip(kDisp(k.down))}</div>`;
-      }
-    } else {
-      moveRow=`<div style="font-size:.58rem;color:rgba(255,255,255,.35);letter-spacing:2px;">${lp.type==='bot'?'🤖 AI CONTROLLED':'—'}</div>`;
-    }
+    const keyChip=t=>`<span style="display:inline-flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:.5rem;font-weight:700;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);border-radius:5px;padding:2px 5px;color:#fff;min-width:18px;">${t}</span>`;
+    const moveRow=lp.type==='human'?`<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap;justify-content:center;">${keyChip(kDisp(k.left))}${keyChip(kDisp(k.up))}${keyChip(kDisp(k.right))}${keyChip(kDisp(k.down))}</div>`:`<div style="font-size:.58rem;color:rgba(255,255,255,.35);letter-spacing:2px;">${lp.type==='bot'?'🤖 AI CONTROLLED':'—'}</div>`;
     const typeClass=lp.type==='human'?'h':lp.type==='bot'?'b':'o';const typeLabel=lp.type==='human'?'HUMAN':lp.type==='bot'?'BOT':'OFF';
     const d=document.createElement('div');d.className='pcard'+(lp.type!=='off'?' active-card':'');
     d.innerHTML=`<div class="pcard-swatch" style="background:${pd.color}"></div><div class="pcard-info"><div class="pcard-name" style="color:${pd.color}">${pd.name}</div>${moveRow}</div><div class="pcard-btns"><button class="type-btn ${typeClass}" onclick="cycleType(${i})">${typeLabel}</button></div>`;
@@ -1920,152 +1904,6 @@ function buildPwList(){
 const keys={};
 document.addEventListener('keydown',e=>{keys[e.key]=true;keys[e.key.toLowerCase()]=true;if(G&&G.running&&e.key==='Escape')togglePause();if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','s','w','k'].includes(e.key)&&G&&G.running)e.preventDefault();});
 document.addEventListener('keyup',e=>{keys[e.key]=false;keys[e.key.toLowerCase()]=false;});
-
-// ── Gamepad / Controller Support ─────────────────────────────────────────────
-// Maps up to 4 gamepads to player slots. Works with PS4/PS5, Xbox, and any
-// standard gamepad. Uses the W3C Gamepad API — no library needed.
-//
-// PS controller button layout (standard mapping):
-//   0=Cross(×)  1=Circle(○)  2=Square(□)  3=Triangle(△)
-//   4=L1  5=R1  6=L2  7=R2  8=Share  9=Options(pause)
-//   10=L3  11=R3  12=D-Up  13=D-Down  14=D-Left  15=D-Right  16=PS
-// Xbox:
-//   0=A  1=B  2=X  3=Y  9=Start(pause)  12-15=D-pad
-//
-// Axis 0=Left stick X  Axis 1=Left stick Y
-
-const GAMEPAD_DEADZONE = 0.25;
-// gamepadStates[playerIndex] = { left, right, up, down, pause, prevPause }
-const gamepadStates = [{},{},{},{}];
-// Which gamepad index is assigned to which player slot (null = none)
-const gamepadAssignments = [null, null, null, null]; // playerSlot → gamepadIndex
-// Track which gamepad indices are taken
-const gamepadTaken = new Set();
-
-// Called every frame from the game loop and also on title screen
-function pollGamepads() {
-  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-
-  // Auto-assign newly connected gamepads to free player slots
-  for (let gi = 0; gi < pads.length; gi++) {
-    const pad = pads[gi];
-    if (!pad) continue;
-    if (!gamepadTaken.has(gi)) {
-      // Find first unassigned player slot
-      const freeSlot = gamepadAssignments.indexOf(null);
-      if (freeSlot !== -1) {
-        gamepadAssignments[freeSlot] = gi;
-        gamepadTaken.add(gi);
-        // Show toast
-        _gpToast(`🎮 Controller ${gi+1} → P${freeSlot+1}`);
-        // Refresh lobby card if visible
-        if ($('pcards')) buildPCards();
-      }
-    }
-  }
-
-  // Read each assigned pad and translate to player state
-  for (let slot = 0; slot < 4; slot++) {
-    const gi = gamepadAssignments[slot];
-    const pad = gi !== null ? pads[gi] : null;
-    const st = gamepadStates[slot];
-    st.prevPause = st.pause;
-
-    if (!pad || !pad.connected) {
-      // Pad disconnected — release all inputs and unassign
-      if (gi !== null) {
-        gamepadTaken.delete(gi);
-        gamepadAssignments[slot] = null;
-        _gpToast(`🎮 Controller disconnected from P${slot+1}`);
-        if ($('pcards')) buildPCards();
-      }
-      st.left=false;st.right=false;st.up=false;st.down=false;st.pause=false;
-      continue;
-    }
-
-    const b = pad.buttons;
-    const ax = pad.axes;
-
-    // Left stick + D-pad movement
-    const stickX = ax[0] || 0;
-    const stickY = ax[1] || 0;
-    const dLeft  = (b[14]&&b[14].pressed) || stickX < -GAMEPAD_DEADZONE;
-    const dRight = (b[15]&&b[15].pressed) || stickX >  GAMEPAD_DEADZONE;
-    const dUp    = (b[12]&&b[12].pressed) || stickY < -GAMEPAD_DEADZONE;
-    const dDown  = (b[13]&&b[13].pressed) || stickY >  GAMEPAD_DEADZONE;
-
-    // Jump = Cross/A (0), also Triangle/Y (3) and R2 (7) for comfort
-    const jump = (b[0]&&b[0].pressed)||(b[3]&&b[3].pressed)||(b[7]&&b[7].pressed);
-    // Duck = Circle/B (1), Square/X (2), L2 (6)
-    const duck = (b[1]&&b[1].pressed)||(b[2]&&b[2].pressed)||(b[6]&&b[6].pressed);
-    // Pause = Options/Start (9), touchpad click (17 on PS5)
-    const pause = (b[9]&&b[9].pressed)||(b[17]&&b[17].pressed)||(b[8]&&b[8].pressed);
-
-    st.left  = dLeft;
-    st.right = dRight;
-    st.up    = dUp || jump;   // up OR jump button both jump
-    st.down  = dDown || duck;
-    st.pause = pause;
-
-    // Trigger pause on press (not hold)
-    if (st.pause && !st.prevPause && G && G.running) togglePause();
-
-    // Navigate menus with controller when game not running
-    if (!G || !G.running) {
-      _gpMenuNav(slot, pad, st);
-    }
-  }
-}
-
-let _gpLastNav = 0;
-function _gpMenuNav(slot, pad, st) {
-  const now = Date.now();
-  if (now - _gpLastNav < 220) return; // debounce menu navigation
-  const b = pad.buttons;
-  // Cross/A = confirm, Circle/B = back
-  if (b[0]&&b[0].pressed) {
-    _gpLastNav = now;
-    // Try to click the focused/active button
-    const focused = document.activeElement;
-    if (focused && (focused.tagName==='BUTTON'||focused.tagName==='A')) focused.click();
-    else {
-      // If lobby is showing, advance step
-      const next = $('lob-next');
-      if (next && next.offsetParent) { sfx('nav'); next.click(); }
-      // If mode select screen
-      const modeLocal = $('mode-local-btn');
-      if (modeLocal && modeLocal.offsetParent) chooseLocal();
-    }
-  }
-  if (b[1]&&b[1].pressed) {
-    _gpLastNav = now;
-    const back = $('lob-back');
-    if (back && back.offsetParent) back.click();
-  }
-}
-
-// Show a small toast notification for controller connect/disconnect
-let _gpToastEl = null;
-function _gpToast(msg) {
-  if (!_gpToastEl) {
-    _gpToastEl = document.createElement('div');
-    _gpToastEl.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;font-family:'Baloo 2',cursive;font-size:.72rem;font-weight:900;letter-spacing:2px;color:#fff;background:rgba(0,0,0,.75);border:1.5px solid rgba(255,255,255,.2);border-radius:50px;padding:9px 22px;pointer-events:none;transition:opacity .3s;opacity:0;`;
-    document.body.appendChild(_gpToastEl);
-  }
-  _gpToastEl.textContent = msg;
-  _gpToastEl.style.opacity = '1';
-  clearTimeout(_gpToastEl._t);
-  _gpToastEl._t = setTimeout(() => { _gpToastEl.style.opacity = '0'; }, 2500);
-}
-
-// Listen for gamepad connect/disconnect events
-window.addEventListener('gamepadconnected', e => {
-  _gpToast(`🎮 ${e.gamepad.id.slice(0,30)} connected`);
-});
-window.addEventListener('gamepaddisconnected', e => {
-  // The poll loop handles cleanup, but show a toast immediately
-  _gpToast(`🎮 Controller disconnected`);
-});
 let G=null,raf=null;
 const WARP_COOLDOWN_FRAMES=420;
 function drawTitleBot(ctx,p){
@@ -2293,12 +2131,10 @@ function physStep(p){
   const _altRight=_soloHuman?(keys['ArrowRight']||keys['d']||false):false;
   const _altUp   =_soloHuman?(keys['ArrowUp']||keys['w']||false):false;
   const _altDown =_soloHuman?(keys['ArrowDown']||keys['s']||false):false;
-  // Gamepad input for this player's slot
-  const _gpState = (p.type==='human' && p.def) ? gamepadStates[p.def.id] || {} : {};
-  const goL=(p.type==='bot'?botKeys[p.def.keys.left]:keys[p.def.keys.left])||keys[p.def.keys.left.toLowerCase()]||_altLeft||_gpState.left;
-  const goR=(p.type==='bot'?botKeys[p.def.keys.right]:keys[p.def.keys.right])||keys[p.def.keys.right.toLowerCase()]||_altRight||_gpState.right;
-  const goJ=(p.type==='bot'?botKeys[p.def.keys.up]:keys[p.def.keys.up])||keys[p.def.keys.up.toLowerCase()]||_altUp||_gpState.up;
-  const goD=p.type==='bot'?false:(keys[p.def.keys.down]||keys[p.def.keys.down.toLowerCase()]||_altDown||_gpState.down);
+  const goL=(p.type==='bot'?botKeys[p.def.keys.left]:keys[p.def.keys.left])||keys[p.def.keys.left.toLowerCase()]||_altLeft;
+  const goR=(p.type==='bot'?botKeys[p.def.keys.right]:keys[p.def.keys.right])||keys[p.def.keys.right.toLowerCase()]||_altRight;
+  const goJ=(p.type==='bot'?botKeys[p.def.keys.up]:keys[p.def.keys.up])||keys[p.def.keys.up.toLowerCase()]||_altUp;
+  const goD=p.type==='bot'?false:(keys[p.def.keys.down]||keys[p.def.keys.down.toLowerCase()]||_altDown);
   if(goL){p.vx=-spd;p.walkDir=-1;}else if(goR){p.vx=spd;p.walkDir=1;}else p.vx*=.72;
   if(Math.abs(p.vx)>.5&&p.onGround)p.legAnim+=.2;
   const maxJ=G.doubleJump?2:1;
@@ -2681,7 +2517,7 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 let _loopLastTime=0;
-function loop(ts){if(!G||!G.running||!G.platforms){raf=null;return;}const now=ts||performance.now();const elapsed=now-_loopLastTime;if(elapsed<14){raf=requestAnimationFrame(loop);return;}_loopLastTime=now;if(!G.paused){G.frame++;pollGamepads();botThink();G.players.forEach(p=>physStep(p));checkTag();if(G.powerupsOn)checkPickups();if(G.mapDef.id==='magma')updateMagmaPlats();G.particles=G.particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.22;p.vx*=.88;p.life--;return p.life>0;});if(G.particles.length>120)G.particles.splice(0,G.particles.length-120);updateCamera();draw();if(G.frame%3===0)updateHUD();}raf=requestAnimationFrame(loop);}
+function loop(ts){if(!G||!G.running||!G.platforms){raf=null;return;}const now=ts||performance.now();const elapsed=now-_loopLastTime;if(elapsed<14){raf=requestAnimationFrame(loop);return;}_loopLastTime=now;if(!G.paused){G.frame++;botThink();G.players.forEach(p=>physStep(p));checkTag();if(G.powerupsOn)checkPickups();if(G.mapDef.id==='magma')updateMagmaPlats();G.particles=G.particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.22;p.vx*=.88;p.life--;return p.life>0;});if(G.particles.length>120)G.particles.splice(0,G.particles.length-120);updateCamera();draw();if(G.frame%3===0)updateHUD();}raf=requestAnimationFrame(loop);}
 // Crumbling platform system for magma map
 function updateMagmaPlats(){
   if(!G||!G.platforms)return;
