@@ -4174,11 +4174,18 @@ async function olStartGame() {
 }
 
 let _cdPhase = '';
+
+// Fixed world size used by ALL online clients — every device uses these exact
+// dimensions so platform coordinates are identical regardless of screen size.
+const OL_MW = 2880;   // canonical world width  (≈ 1.8× a 1600px screen)
+const OL_WH = 2180;   // canonical world height (≈ 1080px + 1100 buffer)
+
 function olPrepareGameCanvas(room) {
   const canvas = $('gameCanvas');
   canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-  const W = canvas.width, H = canvas.height, MW = Math.round(W * 1.8);
-  const WORLD_H = H + 1100;
+  const W = canvas.width, H = canvas.height;
+  // All online clients use the same fixed world size — this is what gets synced
+  const MW = OL_MW, WORLD_H = OL_WH;
   const mapDef = MAPDEFS.find(m => m.id === (room.settings?.map || 'forest')) || MAPDEFS[0];
   const platforms = buildPlatforms(mapDef, MW, WORLD_H);
   const spawnPlats = platforms.filter(pl => pl.t === 'plat');
