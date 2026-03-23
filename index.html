@@ -3859,31 +3859,16 @@ function _startTitleMusic(){
 }</script>
 
 <!-- ═══════════════════════════════════════════════════════════
-     FIREBASE SDK
+     CLOUDFLARE WORKERS ONLINE BACKEND
+     ► Replace WORKER_URL below with your deployed Worker URL
 ═══════════════════════════════════════════════════════════ -->
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getDatabase, ref, set, get, update, onValue, onDisconnect, remove, off }
-  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+// Replace this with your actual Cloudflare Worker URL after deploying worker.js
+const WORKER_URL = 'https://divine-snow-741b.codename1121111.workers.dev/';
 
-// ── Firebase config (hardcoded) ──────────────────────────────────────────────
-const firebaseConfig = {
-  apiKey: "AIzaSyDcEx1uATbZfPk_hD0IF3bEkEGQc6bbq3g",
-  authDomain: "nooble-forum.firebaseapp.com",
-  databaseURL: "https://nooble-forum-default-rtdb.firebaseio.com",
-  projectId: "nooble-forum",
-  storageBucket: "nooble-forum.firebasestorage.app",
-  messagingSenderId: "395619682731",
-  appId: "1:395619682731:web:d43f0f8fc934082a74aaee",
-  measurementId: "G-CYKP79D8Z7"
-};
-
-const app = initializeApp(firebaseConfig, 'tag-game');
-const db = getDatabase(app);
-
-// ── expose to global scope so non-module code can call these ─────────────────
+// ─── OL State ────────────────────────────────────────────────────────────────
 const OL = window.OL = {
-  db,
   code: null,
   playerId: null,   // 0-3
   isHost: false,
@@ -3892,10 +3877,64 @@ const OL = window.OL = {
   players: {},      // playerId → { name, color, skin, ready, x, y, isIt, score }
   myReady: false,
   active: false,
-  listeners: [],    // firebase off() handles
+  listeners: [],    // poll interval IDs
   inputTimer: null,
   itImmune: 0,
+  _lastRoomEtag: null,  // for cheap polling change-detection
+  _pollInterval: null,
+  _heartbeatInterval: null,
 };
+
+// ─── REST helpers ─────────────────────────────────────────────────────────────
+async function cfGet(path) {
+  const res = await fetch(`${WORKER_URL}${path}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+async function cfPost(path, body) {
+  const res = await fetch(`${WORKER_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+async function cfPatch(path, body) {
+  const res = await fetch(`${WORKER_URL}${path}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+async function cfDelete(path) {
+  await fetch(`${WORKER_URL}${path}`, { method: 'DELETE' });
+}
+
+// ─── Heartbeat (keeps player "online", removes on tab close) ─────────────────
+function startHeartbeat() {
+  stopHeartbeat();
+  OL._heartbeatInterval = setInterval(async () => {
+    if (!OL.code || OL.playerId === null) return;
+    await cfPatch(`/rooms/${OL.code}/players/${OL.playerId}`, { online: true, _hb: Date.now() });
+  }, 3000);
+  // On unload, mark offline
+  window.addEventListener('beforeunload', _onUnload);
+}
+function stopHeartbeat() {
+  clearInterval(OL._heartbeatInterval);
+  OL._heartbeatInterval = null;
+  window.removeEventListener('beforeunload', _onUnload);
+}
+function _onUnload() {
+  if (OL.code && OL.playerId !== null) {
+    // Synchronous beacon to mark player offline
+    navigator.sendBeacon(`${WORKER_URL}/rooms/${OL.code}/players/${OL.playerId}/leave`,
+      JSON.stringify({ online: false }));
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UI helpers
@@ -3933,8 +3972,6 @@ window.olHostGame = async function() {
   olShowErr('host', 'Creating room…');
 
   const code = genRoomCode();
-  const roomRef = ref(db, `rooms/${code}`);
-
   const roomData = {
     code,
     host: 0,
@@ -3942,21 +3979,19 @@ window.olHostGame = async function() {
     created: Date.now(),
     settings: { map, time, dj: true, pu: true, spd: 1, tspd: true },
     players: {
-      0: { name, skin: lobby.skins[0]||'none', color:'#ff4455', ready: false, online: true, x:0, y:0, vx:0, vy:0, isIt:false, score:0 }
+      0: { name, skin: lobby.skins[0]||'none', color:'#ff4455', ready: false, online: true, x:0, y:0, vx:0, vy:0, isIt:false, score:0, _hb: Date.now() }
     },
     countdown: 0,
     timeLeft: time,
     itImmune: 0,
   };
 
-  await set(roomRef, roomData);
-
-  // Clean up room when host disconnects
-  onDisconnect(ref(db, `rooms/${code}/players/0/online`)).set(false);
-  onDisconnect(ref(db, `rooms/${code}`)).remove();
+  const result = await cfPost(`/rooms/${code}`, roomData);
+  if (!result) { olShowErr('host', 'Server error — try again'); return; }
 
   OL.code = code; OL.playerId = 0; OL.isHost = true;
   OL.myName = name; OL.mySkin = lobby.skins[0]||'none';
+  startHeartbeat();
   closeOnline();
   olEnterRoom(code);
 };
@@ -3971,9 +4006,8 @@ window.olJoinGame = async function() {
   olClearErr('join');
   olShowErr('join', 'Joining…');
 
-  const roomSnap = await get(ref(db, `rooms/${code}`));
-  if (!roomSnap.exists()) { olShowErr('join','Room not found'); return; }
-  const room = roomSnap.val();
+  const room = await cfGet(`/rooms/${code}`);
+  if (!room) { olShowErr('join','Room not found'); return; }
   if (room.phase !== 'lobby') { olShowErr('join','Game already started'); return; }
 
   // Find a free slot (1-3)
@@ -3983,12 +4017,11 @@ window.olJoinGame = async function() {
   if (slot === -1) { olShowErr('join','Room is full'); return; }
 
   const colors = ['#ff4455','#00e5cc','#ffd600','#b388ff'];
-  await update(ref(db, `rooms/${code}/players/${slot}`), {
+  const joinResult = await cfPatch(`/rooms/${code}/players/${slot}`, {
     name, skin: lobby.skins[0]||'none', color: colors[slot], ready: false, online: true,
-    x:0, y:0, vx:0, vy:0, isIt:false, score:0
+    x:0, y:0, vx:0, vy:0, isIt:false, score:0, _hb: Date.now()
   });
-  onDisconnect(ref(db, `rooms/${code}/players/${slot}/online`)).set(false);
-  onDisconnect(ref(db, `rooms/${code}/players/${slot}`)).remove();
+  if (!joinResult) { olShowErr('join','Failed to join — try again'); return; }
 
   OL.code = code; OL.playerId = slot; OL.isHost = false;
   OL.myName = name; OL.mySkin = lobby.skins[0]||'none';
@@ -3996,12 +4029,13 @@ window.olJoinGame = async function() {
   lobby.map = room.settings?.map || 'forest';
   lobby.time = room.settings?.time || 120;
 
+  startHeartbeat();
   closeOnline();
   olEnterRoom(code);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Waiting room
+// Waiting room — poll-based room listener
 // ─────────────────────────────────────────────────────────────────────────────
 function olEnterRoom(code) {
   $('room-code-display').textContent = code;
@@ -4013,11 +4047,12 @@ function olEnterRoom(code) {
     $('room-time').value = String(lobby.time);
   }
 
-  // Single root listener — handles all phase transitions cleanly
-  const roomRef = ref(db, `rooms/${code}`);
-  const unsub = onValue(roomRef, snap => {
-    if (!snap.exists()) { olTeardown('Room closed.'); return; }
-    const room = snap.val();
+  // Poll the room every 600ms; reuse same handler as Firebase onValue
+  let _lastPhase = '';
+  async function pollRoom() {
+    const room = await cfGet(`/rooms/${code}`);
+    if (!room) { olTeardown('Room closed.'); return; }
+
     OL.players = room.players || {};
 
     // Update lobby settings if changed by host
@@ -4033,9 +4068,13 @@ function olEnterRoom(code) {
     // ── Lobby: show player list ──────────────────────────────────────────────
     if (phase === 'lobby') {
       olRenderRoomPlayers();
+      // Non-host play again return
+      if (_lastPhase && _lastPhase !== 'lobby' && !OL.isHost) {
+        if (OL.active || _gameLaunched || _cdPhase) olReturnToRoom();
+      }
     }
 
-    // ── Starting: show countdown, prep canvas ────────────────────────────────
+    // ── Starting: show countdown ─────────────────────────────────────────────
     if (phase === 'starting' && !_cdPhase) {
       _cdPhase = 'starting';
       $('online-room').style.display = 'none';
@@ -4044,7 +4083,6 @@ function olEnterRoom(code) {
       const ov = $('countdown-overlay'), disp = $('cd-display');
       ov.style.display = 'flex';
 
-      // Count down locally from the server's startAt timestamp
       const startAt = room.startAt || (Date.now() + 3000);
       disp.innerHTML = `<div class="cd-num">3</div>`;
       sfx('countdown');
@@ -4068,7 +4106,6 @@ function olEnterRoom(code) {
       OL.active = true;
       _cdPhase = 'playing';
 
-      // Make sure canvas is ready (might have missed 'starting' phase)
       if (!G) olPrepareGameCanvas(room);
       else {
         Object.entries(room.players || {}).forEach(([pid, pd]) => {
@@ -4080,9 +4117,7 @@ function olEnterRoom(code) {
 
       $('online-room').style.display = 'none';
       showScreen('game-screen', 'anim-pop');
-      const ov = $('countdown-overlay'), disp = $('cd-display');
-      // Clear any leftover countdown
-      ov.style.display = 'none';
+      $('countdown-overlay').style.display = 'none';
 
       G.running = true;
       G.itImmune = room.itImmune || 100;
@@ -4099,77 +4134,67 @@ function olEnterRoom(code) {
     // ── Ended ────────────────────────────────────────────────────────────────
     if (phase === 'ended') olHandleGameEnd();
 
-    // ── Back to lobby after play again ───────────────────────────────────────
-    if (phase === 'lobby' && (OL.active || _gameLaunched || _cdPhase)) {
-      if (!OL.isHost) olReturnToRoom();
-    }
-  });
-  OL.listeners.push({ ref: roomRef, unsub });
+    _lastPhase = phase;
+  }
+
+  // Kick off immediately, then poll
+  pollRoom();
+  OL._pollInterval = setInterval(pollRoom, 600);
+  OL.listeners.push(OL._pollInterval);
 }
 
 window.olReady = function() {
-  if (OL.myReady || !db) return;
+  if (OL.myReady) return;
   OL.myReady = true;
-  update(ref(db, `rooms/${OL.code}/players/${OL.playerId}`), { ready: true });
+  cfPatch(`/rooms/${OL.code}/players/${OL.playerId}`, { ready: true });
   const btn = $('room-ready-btn');
   btn.textContent = 'WAITING…'; btn.style.background = 'rgba(255,255,255,.15)'; btn.disabled = true;
-
-  // If host and all players ready → auto-start
-  if (OL.isHost) {
-    setTimeout(olCheckAllReady, 800);
-  }
+  if (OL.isHost) setTimeout(olCheckAllReady, 800);
 };
 
 function olCheckAllReady() {
-  if (!OL.isHost || !db) return;
+  if (!OL.isHost) return;
   const players = OL.players;
   const all = Object.values(players);
-  if (all.length >= 2 && all.every(p => p.ready)) {
-    olStartGame();
-  }
+  if (all.length >= 2 && all.every(p => p.ready)) olStartGame();
 }
 
 window.olForceStart = function() {
-  if (!OL.isHost || !db) return;
+  if (!OL.isHost) return;
   const all = Object.values(OL.players);
   if (all.length < 2) { olSetStatus('Need at least 2 players!'); return; }
   olStartGame();
 };
 
 window.olUpdateSettings = function() {
-  if (!OL.isHost || !db) return;
+  if (!OL.isHost) return;
   const map  = $('room-map').value;
   const time = parseInt($('room-time').value) || 120;
   lobby.map = map; lobby.time = time;
-  update(ref(db, `rooms/${OL.code}/settings`), { map, time });
+  cfPatch(`/rooms/${OL.code}/settings`, { map, time });
 };
 
 async function olStartGame() {
-  // Pick random tagger
   const pids = Object.keys(OL.players).map(Number);
   const itId = pids[Math.floor(Math.random() * pids.length)];
-
-  // Write everything in ONE update so all clients see it atomically
-  // startAt = 3 seconds from now — clients countdown locally from this
   const startAt = Date.now() + 3200;
-  const updates = {
+
+  const playerUpdates = {};
+  pids.forEach(pid => {
+    playerUpdates[pid] = { isIt: pid === itId, score: 0, x: 0, y: 0 };
+  });
+
+  await cfPatch(`/rooms/${OL.code}`, {
     phase: 'starting',
     startAt,
     timeLeft: lobby.time,
     itImmune: 100,
     lastTag: null,
-  };
-  pids.forEach(pid => {
-    updates[`players/${pid}/isIt`] = pid === itId;
-    updates[`players/${pid}/score`] = 0;
-    updates[`players/${pid}/x`] = 0;
-    updates[`players/${pid}/y`] = 0;
+    playerUpdates, // Worker handles merging
   });
-  await update(ref(db, `rooms/${OL.code}`), updates);
 
-  // Host switches room to 'playing' right when the countdown ends
   setTimeout(async () => {
-    await update(ref(db, `rooms/${OL.code}`), { phase: 'playing' });
+    await cfPatch(`/rooms/${OL.code}`, { phase: 'playing' });
   }, 3200);
 }
 
@@ -4237,17 +4262,18 @@ let _gameLaunched = false;
 // Position sync
 // ─────────────────────────────────────────────────────────────────────────────
 function olSendState() {
-  if (!G || !G.running || !OL.active || !db) return;
+  if (!G || !G.running || !OL.active) return;
   const me = G.players.find(p => p.isMe);
   if (!me) return;
-  update(ref(db, `rooms/${OL.code}/players/${OL.playerId}`), {
+
+  cfPatch(`/rooms/${OL.code}/players/${OL.playerId}`, {
     x: Math.round(me.x), y: Math.round(me.y),
     vx: +me.vx.toFixed(1), vy: +me.vy.toFixed(1),
     onGround: me.onGround,
     isIt: me.isIt, score: me.score,
   });
 
-  // Tag detection — report to Firebase
+  // Tag detection
   if (G.itImmune <= 0 && me.isIt) {
     for (const p of G.players) {
       if (p.isIt || p === me) continue;
@@ -4264,72 +4290,83 @@ function olSendState() {
 }
 
 function olListenToPlayers() {
-  const pids = G.players.map(p => p.onlineId).filter(id => id !== OL.playerId);
-  pids.forEach(pid => {
-    const r = ref(db, `rooms/${OL.code}/players/${pid}`);
-    const unsub = onValue(r, snap => {
-      if (!snap.exists() || !G) return;
-      const pd = snap.val();
-      const gp = G.players.find(p => p.onlineId === pid);
-      if (!gp) return;
-      gp.remoteX = pd.x || gp.remoteX;
-      gp.remoteY = pd.y || gp.remoteY;
+  // Poll all player positions every 80ms during gameplay
+  const pid = OL.playerId;
+  const interval = setInterval(async () => {
+    if (!G || !G.running || !OL.active) { clearInterval(interval); return; }
+    const players = await cfGet(`/rooms/${OL.code}/players`);
+    if (!players) return;
+    Object.entries(players).forEach(([sidStr, pd]) => {
+      const sid = parseInt(sidStr);
+      if (sid === pid) return; // skip self
+      const gp = G.players.find(p => p.onlineId === sid);
+      if (!gp || !pd) return;
+      gp.remoteX = pd.x ?? gp.remoteX;
+      gp.remoteY = pd.y ?? gp.remoteY;
       gp.remoteVx = pd.vx; gp.remoteVy = pd.vy;
       if (pd.isIt !== undefined) gp.isIt = pd.isIt;
       if (pd.score !== undefined) gp.score = pd.score;
       gp.walkDir = (pd.vx||0) < -0.3 ? -1 : (pd.vx||0) > 0.3 ? 1 : gp.walkDir;
     });
-    OL.listeners.push({ ref: r, unsub });
-  });
+  }, 80);
+  OL.listeners.push(interval);
 }
 
 function olListenToGameEvents() {
-  // Tag events
-  const tagRef = ref(db, `rooms/${OL.code}/lastTag`);
-  const tagUnsub = onValue(tagRef, snap => {
-    if (!snap.exists() || !G) return;
-    const ev = snap.val();
-    if (!ev || !ev.t) return;
-    if (Date.now() - ev.t > 3000) return; // stale
-    G.players.forEach(p => p.isIt = false);
-    const np = G.players.find(p => p.onlineId === ev.newIt);
-    if (np) { np.isIt = true; G.itImmune = 80; sfx('tag'); flashTag(np.def.color); updateHUD(); }
-  });
-  OL.listeners.push({ ref: tagRef, unsub: tagUnsub });
+  let _lastTagT = 0;
+  let _lastTimeLeft = -1;
 
-  // Timer (host writes every second, all clients read)
-  const timerRef = ref(db, `rooms/${OL.code}/timeLeft`);
-  const timerUnsub = onValue(timerRef, snap => {
-    if (!G || !snap.exists()) return;
-    G.timeLeft = snap.val();
-    updateTimerHUD();
-  });
-  OL.listeners.push({ ref: timerRef, unsub: timerUnsub });
-  // Note: phase changes (ended, lobby) are handled by the root olEnterRoom listener
+  const interval = setInterval(async () => {
+    if (!G || !OL.active) { clearInterval(interval); return; }
+    const room = await cfGet(`/rooms/${OL.code}`);
+    if (!room) return;
+
+    // Tag events
+    const ev = room.lastTag;
+    if (ev && ev.t && ev.t > _lastTagT && Date.now() - ev.t < 3000) {
+      _lastTagT = ev.t;
+      G.players.forEach(p => p.isIt = false);
+      const np = G.players.find(p => p.onlineId === ev.newIt);
+      if (np) { np.isIt = true; G.itImmune = 80; sfx('tag'); flashTag(np.def.color); updateHUD(); }
+    }
+
+    // Timer
+    if (room.timeLeft !== undefined && room.timeLeft !== _lastTimeLeft) {
+      _lastTimeLeft = room.timeLeft;
+      G.timeLeft = room.timeLeft;
+      updateTimerHUD();
+    }
+
+    // Phase changes (ended / lobby for play again)
+    if (room.phase === 'ended') olHandleGameEnd();
+  }, 400);
+  OL.listeners.push(interval);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tag reporting
 // ─────────────────────────────────────────────────────────────────────────────
 function olReportTag(targetId) {
-  if (!db || G.itImmune > 0) return;
-  G.itImmune = 80; // local cooldown to stop spam
-  update(ref(db, `rooms/${OL.code}`), {
+  if (G.itImmune > 0) return;
+  G.itImmune = 80;
+  cfPatch(`/rooms/${OL.code}`, {
     lastTag: { tagger: OL.playerId, newIt: targetId, t: Date.now() },
     itImmune: 80,
-    [`players/${OL.playerId}/isIt`]: false,
-    [`players/${targetId}/isIt`]: true,
+    taggedPlayerId: OL.playerId,
+    newItPlayerId: targetId,
   });
 }
 
 function olReportLavaTag() {
-  if (!db || G.itImmune > 0) return;
+  if (G.itImmune > 0) return;
   G.itImmune = 100;
   const oldIt = G.players.find(p => p.isIt);
-  const updates = { itImmune: 100, lastTag: { tagger: -1, newIt: OL.playerId, t: Date.now() } };
-  if (oldIt) updates[`players/${oldIt.onlineId}/isIt`] = false;
-  updates[`players/${OL.playerId}/isIt`] = true;
-  update(ref(db, `rooms/${OL.code}`), updates);
+  cfPatch(`/rooms/${OL.code}`, {
+    itImmune: 100,
+    lastTag: { tagger: -1, newIt: OL.playerId, t: Date.now() },
+    taggedPlayerId: oldIt ? oldIt.onlineId : null,
+    newItPlayerId: OL.playerId,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -4340,10 +4377,9 @@ function olRunServerTimer() {
     if (!G || !G.running || !OL.active) { clearInterval(tick); return; }
     const newTime = Math.max(0, G.timeLeft - 1);
     G.players.forEach(p => { if (!p.isIt) p.score = (p.score||0) + 1; });
-    // Batch write scores + timer
     const scoreUpdates = { timeLeft: newTime };
-    G.players.forEach(p => { scoreUpdates[`players/${p.onlineId}/score`] = p.score; });
-    await update(ref(db, `rooms/${OL.code}`), scoreUpdates);
+    G.players.forEach(p => { scoreUpdates[`score_${p.onlineId}`] = p.score; });
+    await cfPatch(`/rooms/${OL.code}`, { timeLeft: newTime, scoreUpdates });
     if (newTime <= 0) {
       clearInterval(tick);
       olEndGame();
@@ -4352,8 +4388,7 @@ function olRunServerTimer() {
 }
 
 async function olEndGame() {
-  if (!db) return;
-  await update(ref(db, `rooms/${OL.code}`), { phase: 'ended' });
+  await cfPatch(`/rooms/${OL.code}`, { phase: 'ended' });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -4373,17 +4408,11 @@ function olHandleGameEnd() {
 
 // Play Again — host resets room, everyone returns to waiting room
 window.olPlayAgain = async function() {
-  if (!OL.isHost) return; // only host can trigger
-  // Reset room state in Firebase so all listeners see phase='lobby'
+  if (!OL.isHost) return;
   const pids = Object.keys(OL.players);
   const updates = { phase: 'lobby', countdown: 0, timeLeft: lobby.time, lastTag: null };
-  pids.forEach(pid => {
-    updates[`players/${pid}/ready`] = false;
-    updates[`players/${pid}/isIt`] = false;
-    updates[`players/${pid}/score`] = 0;
-  });
-  await update(ref(db, `rooms/${OL.code}`), updates);
-  // Host's own screen returns to room immediately
+  // Worker handles resetting each player's ready/isIt/score via resetPlayers list
+  await cfPatch(`/rooms/${OL.code}`, { ...updates, resetPlayers: pids });
   olReturnToRoom();
 };
 
@@ -4392,18 +4421,16 @@ function olReturnToRoom() {
   OL.myReady = false;
   OL.active = false;
   clearInterval(OL.inputTimer); OL.inputTimer = null;
-  OL.listeners.forEach(l => { try { off(l.ref); } catch{} });
+  // Clear all polling intervals
+  OL.listeners.forEach(id => clearInterval(id));
   OL.listeners = [];
   if (G) { clearInterval(G.timer); G.running = false; G = null; }
   if (raf) { cancelAnimationFrame(raf); raf = null; }
   _stopMusic();
-  // Reset ready button
   const btn = $('room-ready-btn');
   if (btn) { btn.textContent = 'READY ✓'; btn.style.background = 'linear-gradient(135deg,#00e5cc,#0ab8a0)'; btn.style.cursor = 'pointer'; btn.disabled = false; }
-  // Show room, hide end/game screens
-  showScreen('title-screen', 'anim-pop'); // base layer
+  showScreen('title-screen', 'anim-pop');
   $('online-room').style.display = 'flex';
-  // Re-enter room listener
   olEnterRoom(OL.code);
 }
 
@@ -4422,9 +4449,18 @@ function olTeardown(reason) {
   clearInterval(OL.inputTimer); OL.inputTimer = null;
   OL.active = false; _gameLaunched = false; _cdPhase = ''; _endHandled = false;
 
-  // Remove firebase listeners
-  OL.listeners.forEach(l => { try { off(l.ref); } catch{} });
+  // Clear all polling intervals
+  OL.listeners.forEach(id => clearInterval(id));
   OL.listeners = [];
+
+  stopHeartbeat();
+
+  // Mark player offline on server
+  if (OL.code && OL.playerId !== null) {
+    cfPatch(`/rooms/${OL.code}/players/${OL.playerId}`, { online: false }).catch(()=>{});
+    // If host, delete the room
+    if (OL.isHost) cfDelete(`/rooms/${OL.code}`).catch(()=>{});
+  }
 
   if (G) { clearInterval(G.timer); G.running = false; G = null; }
   if (raf) { cancelAnimationFrame(raf); raf = null; }
@@ -4467,7 +4503,7 @@ function olSetStatus(msg) { const el=$('room-status-msg'); if(el) el.textContent
 const _origPhysStep = physStep;
 window.physStep = function(p) {
   if (G && G.online && !p.isMe) {
-    // Interpolate remote players toward Firebase positions
+    // Interpolate remote players toward server-synced positions
     if (p.remoteX !== undefined) {
       p.x += (p.remoteX - p.x) * 0.22;
       p.y += (p.remoteY - p.y) * 0.22;
