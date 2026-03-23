@@ -371,11 +371,34 @@ body{background:var(--map-bg1);font-family:'Space Grotesk',sans-serif;color:#fff
       <div class="lob-top-title" id="lob-title">PLAYER SETUP</div>
       <div class="step-dots">
         <div class="sdot active" id="sd0"></div>
+        <div class="sdot" id="sd0b"></div>
         <div class="sdot" id="sd1"></div>
         <div class="sdot" id="sd2"></div>
       </div>
     </div>
     <div class="step active" id="step0">
+      <div class="step-title">HOW ARE YOU PLAYING?</div>
+      <div class="step-sub">Choose your game mode</div>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-top:10px;margin-bottom:auto;">
+        <button onclick="chooseLocal()" id="mode-local-btn" style="display:flex;align-items:center;gap:18px;padding:22px 24px;background:rgba(255,255,255,.1);border:2.5px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;text-align:left;transition:all .15s;width:100%;" onmouseenter="this.style.background='rgba(255,255,255,.18)';this.style.borderColor='rgba(255,255,255,.5)';this.style.transform='translateY(-2px)'" onmouseleave="this.style.background='rgba(255,255,255,.1)';this.style.borderColor='rgba(255,255,255,.2)';this.style.transform=''">
+          <div style="font-size:2rem;flex-shrink:0;">🎮</div>
+          <div>
+            <div style="font-family:'Baloo 2',cursive;font-size:1.15rem;font-weight:900;letter-spacing:3px;color:#fff;margin-bottom:3px;">LOCAL</div>
+            <div style="font-size:.6rem;font-weight:600;color:rgba(255,255,255,.5);letter-spacing:2px;">Same device · Up to 4 players · Bots</div>
+          </div>
+          <div style="margin-left:auto;font-family:'Baloo 2',cursive;font-size:.7rem;font-weight:900;color:rgba(255,255,255,.35);">→</div>
+        </button>
+        <button onclick="chooseOnline()" id="mode-online-btn" style="display:flex;align-items:center;gap:18px;padding:22px 24px;background:rgba(0,229,204,.08);border:2.5px solid rgba(0,229,204,.3);border-radius:20px;cursor:pointer;text-align:left;transition:all .15s;width:100%;" onmouseenter="this.style.background='rgba(0,229,204,.18)';this.style.borderColor='rgba(0,229,204,.7)';this.style.transform='translateY(-2px)'" onmouseleave="this.style.background='rgba(0,229,204,.08)';this.style.borderColor='rgba(0,229,204,.3)';this.style.transform=''">
+          <div style="font-size:2rem;flex-shrink:0;">🌐</div>
+          <div>
+            <div style="font-family:'Baloo 2',cursive;font-size:1.15rem;font-weight:900;letter-spacing:3px;color:#00e5cc;margin-bottom:3px;">ONLINE</div>
+            <div style="font-size:.6rem;font-weight:600;color:rgba(0,229,204,.55);letter-spacing:2px;">Play with friends anywhere · Room codes</div>
+          </div>
+          <div style="margin-left:auto;font-family:'Baloo 2',cursive;font-size:.7rem;font-weight:900;color:rgba(0,229,204,.5);">→</div>
+        </button>
+      </div>
+    </div>
+    <div class="step" id="step0b">
       <div class="step-title">WHO'S PLAYING?</div>
       <div class="step-sub">Set each player to Human or Off</div>
       <div class="player-cards" id="pcards"></div>
@@ -475,8 +498,9 @@ body{background:var(--map-bg1);font-family:'Space Grotesk',sans-serif;color:#fff
       <div id="end-title" style="font-family:'Baloo 2',cursive;font-size:clamp(4rem,9vw,8rem);font-weight:900;color:#fff;line-height:.88;letter-spacing:-2px;text-shadow:0 8px 0 rgba(0,0,0,.35);margin-bottom:36px;opacity:0;animation:slideInUp .5s cubic-bezier(.22,1,.36,1) 80ms both;">GAME<br>OVER</div>
       <div id="end-scores" style="display:flex;flex-direction:column;gap:8px;margin-bottom:44px;"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button onclick="rematch()" style="font-family:'Baloo 2',cursive;font-size:.8rem;font-weight:900;letter-spacing:4px;text-transform:uppercase;padding:14px 32px;background:#fff;color:#111;border:none;border-radius:50px;cursor:pointer;box-shadow:0 6px 0 rgba(0,0,0,.4);transition:all .12s;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 9px 0 rgba(0,0,0,.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 6px 0 rgba(0,0,0,.4)'">▶ REMATCH</button>
-        <button onclick="goLobby()" style="font-family:'Baloo 2',cursive;font-size:.8rem;font-weight:900;letter-spacing:4px;text-transform:uppercase;padding:14px 28px;background:rgba(255,255,255,.12);color:#fff;border:2px solid rgba(255,255,255,.3);border-radius:50px;cursor:pointer;transition:all .12s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">LOBBY</button>
+        <button id="end-rematch-btn" onclick="rematch()" style="font-family:'Baloo 2',cursive;font-size:.8rem;font-weight:900;letter-spacing:4px;text-transform:uppercase;padding:14px 32px;background:#fff;color:#111;border:none;border-radius:50px;cursor:pointer;box-shadow:0 6px 0 rgba(0,0,0,.4);transition:all .12s;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 9px 0 rgba(0,0,0,.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 6px 0 rgba(0,0,0,.4)'">▶ REMATCH</button>
+        <button id="end-online-again-btn" onclick="olPlayAgain()" style="display:none;font-family:'Baloo 2',cursive;font-size:.8rem;font-weight:900;letter-spacing:4px;text-transform:uppercase;padding:14px 32px;background:rgba(0,229,204,.2);color:#00e5cc;border:2px solid rgba(0,229,204,.5);border-radius:50px;cursor:pointer;transition:all .12s;" onmouseover="this.style.background='rgba(0,229,204,.35)'" onmouseout="this.style.background='rgba(0,229,204,.2)'">🌐 PLAY AGAIN</button>
+        <button id="end-lobby-btn" onclick="goLobby()" style="font-family:'Baloo 2',cursive;font-size:.8rem;font-weight:900;letter-spacing:4px;text-transform:uppercase;padding:14px 28px;background:rgba(255,255,255,.12);color:#fff;border:2px solid rgba(255,255,255,.3);border-radius:50px;cursor:pointer;transition:all .12s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">LOBBY</button>
         <button onclick="goMenu()" style="font-family:'Baloo 2',cursive;font-size:.8rem;font-weight:900;letter-spacing:4px;text-transform:uppercase;padding:14px 28px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.55);border:2px solid rgba(255,255,255,.15);border-radius:50px;cursor:pointer;transition:all .12s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.55)'">QUIT</button>
       </div>
     </div>
@@ -1786,10 +1810,30 @@ function openPresets(){
 }
 function closePresets(){$('presets-modal').style.display='none';}
 function applyPreset(p){sfx('preset');lobby.time=p.cfg.time;lobby.pu=p.cfg.pu;lobby.dj=p.cfg.dj;lobby.spd=p.cfg.spd;lobby.tspd=p.cfg.tspd;lobby.powers=Object.assign({},p.cfg.powers);closePresets();buildPwList();if(lobby.players.filter(lp=>lp.type!=='off').length<2){alert('Need at least 2 players!');return;}showPregame();}
-const STEP_TITLES=['PLAYER SETUP','MAP SELECTION','GAME SETTINGS'];
+const STEP_TITLES=['GAME MODE','WHO\'S PLAYING?','PICK A MAP','GAME SETTINGS'];
+// Lobby now has steps: mode(0) → players(0b) → map(1) → settings(2)
+// lobbyStep tracks: 0=mode, 1=players, 2=map, 3=settings
+let lobbyMode='local'; // 'local' or 'online'
 function showLobby(fromRight){if(titleRaf){cancelAnimationFrame(titleRaf);titleRaf=null;}_stopMusic(0.4);sfx('swoosh');setMapTheme(lobby.map);lobbyStep=0;buildPCards();buildMCards();buildPwList();renderStep();showScreen('lobby-screen',fromRight?'anim-right':'anim-left');}
-function renderStep(){document.querySelectorAll('.step').forEach((s,i)=>s.classList.toggle('active',i===lobbyStep));$('lob-title').textContent=STEP_TITLES[lobbyStep];for(let i=0;i<3;i++){const d=$('sd'+i);d.classList.toggle('active',i===lobbyStep);d.classList.toggle('done',i<lobbyStep);}$('lob-back').style.visibility='visible';$('lob-back').textContent=lobbyStep===0?'← EXIT':'← BACK';$('lob-next').textContent=lobbyStep===2?'START GAME →':'NEXT →';const presetBtn=$('lob-preset');if(presetBtn)presetBtn.style.display=lobbyStep===0?'inline-flex':'none';}
-function lobbyNext(){sfx('nav');if(lobbyStep<2){lobbyStep++;renderStep();}else{if(lobby.players.filter(lp=>lp.type!=='off').length<2){alert('Need at least 2 players!');return;}showPregame();}}
+function renderStep(){
+  // Map our internal step index to visible step IDs
+  const stepIds=['step0','step0b','step1','step2'];
+  const dotIds=['sd0','sd0b','sd1','sd2'];
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  const activeId=stepIds[lobbyStep];
+  if($(activeId))$(activeId).classList.add('active');
+  $('lob-title').textContent=STEP_TITLES[lobbyStep];
+  for(let i=0;i<4;i++){const d=$(dotIds[i]);if(d){d.classList.toggle('active',i===lobbyStep);d.classList.toggle('done',i<lobbyStep);}}
+  $('lob-back').style.visibility='visible';
+  $('lob-back').textContent=lobbyStep===0?'← EXIT':'← BACK';
+  $('lob-next').textContent=lobbyStep===3?'START GAME →':'NEXT →';
+  // Only show NEXT on steps 1-3 (not step 0 — that uses the big mode buttons)
+  $('lob-next').style.display=lobbyStep===0?'none':'inline-flex';
+  const presetBtn=$('lob-preset');if(presetBtn)presetBtn.style.display=lobbyStep===1?'inline-flex':'none';
+}
+function chooseLocal(){sfx('nav');lobbyMode='local';lobbyStep=1;buildPCards();renderStep();}
+function chooseOnline(){sfx('click');goMenu();setTimeout(()=>openOnline(),50);}
+function lobbyNext(){sfx('nav');if(lobbyStep<3){lobbyStep++;renderStep();}else{if(lobby.players.filter(lp=>lp.type!=='off').length<2){alert('Need at least 2 players!');return;}showPregame();}}
 function lobbyBack(){sfx('navback');if(lobbyStep===0){goMenu();}else{lobbyStep--;renderStep();}}
 function setMapTheme(mapId){}
 function setOpt(k,v,btn){sfx('toggle');if(k==='time')lobby.time=v;else if(k==='dj')lobby.dj=v;else if(k==='pu')lobby.pu=v;else if(k==='spd')lobby.spd=v;else if(k==='tspd')lobby.tspd=v;btn.closest('.opt-bs').querySelectorAll('.ob').forEach(b=>b.classList.remove('s'));btn.classList.add('s');}
@@ -3359,6 +3403,17 @@ function endGame(){
     drawEndPlayer(cctx,it,bw,bh,bx,by,true);
   }
   showScreen('end-screen','anim-pop');
+  // Show/hide online vs local end buttons
+  const isOnline = !!(G && G.online);
+  const rematchBtn = $('end-rematch-btn'), lobbyBtn = $('end-lobby-btn'), onlineAgainBtn = $('end-online-again-btn');
+  if(rematchBtn) rematchBtn.style.display = isOnline ? 'none' : '';
+  if(lobbyBtn)   lobbyBtn.style.display   = isOnline ? 'none' : '';
+  if(onlineAgainBtn) {
+    onlineAgainBtn.style.display = isOnline ? '' : 'none';
+    // Only host sees Play Again (they trigger it for everyone)
+    if(isOnline && window.OL) onlineAgainBtn.textContent = window.OL.isHost ? '🌐 PLAY AGAIN' : '⏳ WAITING FOR HOST…';
+    if(isOnline && window.OL && !window.OL.isHost) onlineAgainBtn.style.cursor = 'default';
+  }
 }
 function goMenu(){$('overlay').style.display='none';$('countdown-overlay').style.display='none';if(countdownInterval){clearInterval(countdownInterval);countdownInterval=null;}if(raf){cancelAnimationFrame(raf);raf=null;}if(G){clearInterval(G.timer);G=null;}_stopMusic();showScreen('title-screen','anim-pop');if(titleRaf)cancelAnimationFrame(titleRaf);titleLastTime=0;initTitleScreen();setTimeout(()=>_startTitleMusic(),400);}
 function rematch(){sfx('nav');$('overlay').style.display='none';if(countdownInterval){clearInterval(countdownInterval);countdownInterval=null;}if(raf){cancelAnimationFrame(raf);raf=null;}if(G){clearInterval(G.timer);G=null;}showPregame();}
@@ -3802,5 +3857,732 @@ function _startTitleMusic(){
     _musicPlaying=true;
   }catch(e){console.warn('Title music err',e);}
 }</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FIREBASE SDK
+═══════════════════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, set, get, update, onValue, onDisconnect, remove, off }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+// ── Firebase config (hardcoded) ──────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyDcEx1uATbZfPk_hD0IF3bEkEGQc6bbq3g",
+  authDomain: "nooble-forum.firebaseapp.com",
+  databaseURL: "https://nooble-forum-default-rtdb.firebaseio.com",
+  projectId: "nooble-forum",
+  storageBucket: "nooble-forum.firebasestorage.app",
+  messagingSenderId: "395619682731",
+  appId: "1:395619682731:web:d43f0f8fc934082a74aaee",
+  measurementId: "G-CYKP79D8Z7"
+};
+
+const app = initializeApp(firebaseConfig, 'tag-game');
+const db = getDatabase(app);
+
+// ── expose to global scope so non-module code can call these ─────────────────
+const OL = window.OL = {
+  db,
+  code: null,
+  playerId: null,   // 0-3
+  isHost: false,
+  myName: '',
+  mySkin: 'none',
+  players: {},      // playerId → { name, color, skin, ready, x, y, isIt, score }
+  myReady: false,
+  active: false,
+  listeners: [],    // firebase off() handles
+  inputTimer: null,
+  itImmune: 0,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI helpers
+// ─────────────────────────────────────────────────────────────────────────────
+window.openOnline = function() {
+  sfx('click');
+  $('online-modal').style.display = 'flex';
+  olTab('host');
+};
+window.closeOnline = function() { $('online-modal').style.display = 'none'; };
+
+window.olTab = function(tab) {
+  const isHost = tab === 'host';
+  $('ol-panel-host').style.display = isHost ? 'block' : 'none';
+  $('ol-panel-join').style.display  = isHost ? 'none'  : 'block';
+  const th = $('ol-tab-host'), tj = $('ol-tab-join');
+  th.style.cssText += `;background:${isHost?'rgba(255,255,255,.14)':'transparent'};border-bottom:3px solid ${isHost?'#fff':'transparent'};color:${isHost?'#fff':'rgba(255,255,255,.4)'}`;
+  tj.style.cssText += `;background:${!isHost?'rgba(255,255,255,.14)':'transparent'};border-bottom:3px solid ${!isHost?'#fff':'transparent'};color:${!isHost?'#fff':'rgba(255,255,255,.4)'}`;
+};
+
+function olShowErr(panel, msg) {
+  const el = $(`ol-${panel}-err`);
+  if (el) el.textContent = msg;
+}
+function olClearErr(panel) { const el = $(`ol-${panel}-err`); if (el) el.textContent = ''; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Host
+// ─────────────────────────────────────────────────────────────────────────────
+window.olHostGame = async function() {
+  const name = ($('ol-host-name').value || '').trim() || 'Player 1';
+  const map  = $('ol-host-map').value;
+  const time = parseInt($('ol-host-time').value) || 120;
+  olClearErr('host');
+  olShowErr('host', 'Creating room…');
+
+  const code = genRoomCode();
+  const roomRef = ref(db, `rooms/${code}`);
+
+  const roomData = {
+    code,
+    host: 0,
+    phase: 'lobby',
+    created: Date.now(),
+    settings: { map, time, dj: true, pu: true, spd: 1, tspd: true },
+    players: {
+      0: { name, skin: lobby.skins[0]||'none', color:'#ff4455', ready: false, online: true, x:0, y:0, vx:0, vy:0, isIt:false, score:0 }
+    },
+    countdown: 0,
+    timeLeft: time,
+    itImmune: 0,
+  };
+
+  await set(roomRef, roomData);
+
+  // Clean up room when host disconnects
+  onDisconnect(ref(db, `rooms/${code}/players/0/online`)).set(false);
+  onDisconnect(ref(db, `rooms/${code}`)).remove();
+
+  OL.code = code; OL.playerId = 0; OL.isHost = true;
+  OL.myName = name; OL.mySkin = lobby.skins[0]||'none';
+  closeOnline();
+  olEnterRoom(code);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Join
+// ─────────────────────────────────────────────────────────────────────────────
+window.olJoinGame = async function() {
+  const code = ($('ol-join-code').value||'').trim().toUpperCase();
+  const name = ($('ol-join-name').value||'').trim() || 'Player 2';
+  if (code.length !== 6) { olShowErr('join','Enter a 6-character code'); return; }
+  olClearErr('join');
+  olShowErr('join', 'Joining…');
+
+  const roomSnap = await get(ref(db, `rooms/${code}`));
+  if (!roomSnap.exists()) { olShowErr('join','Room not found'); return; }
+  const room = roomSnap.val();
+  if (room.phase !== 'lobby') { olShowErr('join','Game already started'); return; }
+
+  // Find a free slot (1-3)
+  const taken = Object.keys(room.players||{}).map(Number);
+  let slot = -1;
+  for (let i = 1; i <= 3; i++) { if (!taken.includes(i)) { slot = i; break; } }
+  if (slot === -1) { olShowErr('join','Room is full'); return; }
+
+  const colors = ['#ff4455','#00e5cc','#ffd600','#b388ff'];
+  await update(ref(db, `rooms/${code}/players/${slot}`), {
+    name, skin: lobby.skins[0]||'none', color: colors[slot], ready: false, online: true,
+    x:0, y:0, vx:0, vy:0, isIt:false, score:0
+  });
+  onDisconnect(ref(db, `rooms/${code}/players/${slot}/online`)).set(false);
+  onDisconnect(ref(db, `rooms/${code}/players/${slot}`)).remove();
+
+  OL.code = code; OL.playerId = slot; OL.isHost = false;
+  OL.myName = name; OL.mySkin = lobby.skins[0]||'none';
+  // Apply room settings
+  lobby.map = room.settings?.map || 'forest';
+  lobby.time = room.settings?.time || 120;
+
+  closeOnline();
+  olEnterRoom(code);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Waiting room
+// ─────────────────────────────────────────────────────────────────────────────
+function olEnterRoom(code) {
+  $('room-code-display').textContent = code;
+  $('online-room').style.display = 'flex';
+  $('room-settings-row').style.display = OL.isHost ? 'block' : 'none';
+  $('room-start-btn').style.display   = OL.isHost ? 'block' : 'none';
+  if (OL.isHost) {
+    $('room-map').value  = lobby.map;
+    $('room-time').value = String(lobby.time);
+  }
+
+  // Listen to room changes
+  const roomRef = ref(db, `rooms/${code}`);
+  const unsub = onValue(roomRef, snap => {
+    if (!snap.exists()) { olTeardown('Room closed.'); return; }
+    const room = snap.val();
+    OL.players = room.players || {};
+
+    // Update lobby settings if changed by host
+    if (room.settings) {
+      lobby.map  = room.settings.map  || lobby.map;
+      lobby.time = room.settings.time || lobby.time;
+      if ($('room-map'))  $('room-map').value  = lobby.map;
+      if ($('room-time')) $('room-time').value = String(lobby.time);
+    }
+
+    olRenderRoomPlayers();
+
+    if (room.phase === 'countdown' && !OL.active) {
+      olBeginCountdown(room);
+    }
+    if (room.phase === 'playing' && !OL.active) {
+      olLaunchGame(room);
+    }
+  });
+  OL.listeners.push({ ref: roomRef, unsub });
+}
+
+window.olReady = function() {
+  if (OL.myReady || !db) return;
+  OL.myReady = true;
+  update(ref(db, `rooms/${OL.code}/players/${OL.playerId}`), { ready: true });
+  const btn = $('room-ready-btn');
+  btn.textContent = 'WAITING…'; btn.style.background = 'rgba(255,255,255,.15)'; btn.disabled = true;
+
+  // If host and all players ready → auto-start
+  if (OL.isHost) {
+    setTimeout(olCheckAllReady, 800);
+  }
+};
+
+function olCheckAllReady() {
+  if (!OL.isHost || !db) return;
+  const players = OL.players;
+  const all = Object.values(players);
+  if (all.length >= 2 && all.every(p => p.ready)) {
+    olStartGame();
+  }
+}
+
+window.olForceStart = function() {
+  if (!OL.isHost || !db) return;
+  const all = Object.values(OL.players);
+  if (all.length < 2) { olSetStatus('Need at least 2 players!'); return; }
+  olStartGame();
+};
+
+window.olUpdateSettings = function() {
+  if (!OL.isHost || !db) return;
+  const map  = $('room-map').value;
+  const time = parseInt($('room-time').value) || 120;
+  lobby.map = map; lobby.time = time;
+  update(ref(db, `rooms/${OL.code}/settings`), { map, time });
+};
+
+async function olStartGame() {
+  // Pick random tagger
+  const pids = Object.keys(OL.players).map(Number);
+  const itId = pids[Math.floor(Math.random() * pids.length)];
+
+  // Set isIt on players
+  const playerUpdates = {};
+  pids.forEach(pid => { playerUpdates[`players/${pid}/isIt`] = pid === itId; playerUpdates[`players/${pid}/score`] = 0; });
+  playerUpdates['phase'] = 'countdown';
+  playerUpdates['countdown'] = 3;
+  playerUpdates['timeLeft'] = lobby.time;
+  playerUpdates['itImmune'] = 100;
+  await update(ref(db, `rooms/${OL.code}`), playerUpdates);
+
+  // Countdown 3→2→1 then set phase=playing
+  let n = 3;
+  const tick = setInterval(async () => {
+    n--;
+    if (n > 0) {
+      await update(ref(db, `rooms/${OL.code}`), { countdown: n });
+    } else {
+      clearInterval(tick);
+      await update(ref(db, `rooms/${OL.code}`), { phase: 'playing', countdown: 0 });
+    }
+  }, 1000);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Countdown display
+// ─────────────────────────────────────────────────────────────────────────────
+let _cdPhase = '';
+function olBeginCountdown(room) {
+  if (_cdPhase === 'countdown') return;
+  _cdPhase = 'countdown';
+  const ov = $('countdown-overlay'), disp = $('cd-display');
+  ov.style.display = 'flex';
+  $('online-room').style.display = 'none';
+  showScreen('game-screen', 'anim-pop');
+
+  // Pre-build the game canvas so it's ready
+  olPrepareGameCanvas(room);
+
+  const unsub = onValue(ref(db, `rooms/${OL.code}/countdown`), snap => {
+    const n = snap.val();
+    if (n > 0) { disp.innerHTML = `<div class="cd-num">${n}</div>`; sfx('countdown'); }
+  });
+  OL.listeners.push({ ref: ref(db, `rooms/${OL.code}/countdown`), unsub });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Launch game
+// ─────────────────────────────────────────────────────────────────────────────
+function olPrepareGameCanvas(room) {
+  const canvas = $('gameCanvas');
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  const W = canvas.width, H = canvas.height, MW = Math.round(W * 1.8);
+  const WORLD_H = H + 1100;
+  const mapDef = MAPDEFS.find(m => m.id === (room.settings?.map || 'forest')) || MAPDEFS[0];
+  const platforms = buildPlatforms(mapDef, MW, WORLD_H);
+  const spawnPlats = platforms.filter(pl => pl.t === 'plat');
+  const spawnPlat = spawnPlats.reduce((a,b)=>b.w>a.w?b:a, spawnPlats[0] || platforms[0]);
+  const pids = Object.keys(room.players||{}).map(Number).sort();
+  const spawnY = spawnPlat.y - 36 - 4;
+  const platMid = spawnPlat.x + spawnPlat.w / 2;
+  const spread = Math.min(spawnPlat.w * 0.55, pids.length * 90);
+  const spacing = pids.length > 1 ? spread / (pids.length - 1) : 0;
+  const startX = platMid - spread / 2;
+  const colors = ['#ff4455','#00e5cc','#ffd600','#b388ff'];
+
+  const gamePlayers = pids.map((pid, i) => {
+    const pd = room.players[pid];
+    const def = { ...PDEFS[pid] || PDEFS[0], name: pd.name || `P${pid+1}`, color: pd.color || colors[pid] };
+    return {
+      type: pid === OL.playerId ? 'human' : 'online',
+      def, onlineId: pid, isMe: pid === OL.playerId,
+      x: startX + i * spacing - 16, y: spawnY,
+      vx:0, vy:0, w:32, h:36, onGround:false, jumps:0,
+      isIt: !!pd.isIt, score: pd.score||0,
+      frozenTime:0, shrunken:0, grown:0, boosted:0, invisTime:0,
+      legAnim:0, walkDir:1, _phaseTimer:0, _pJ:false,
+      squishState:0, squishProg:0, _pD:false,
+      jumpAnim:0, djFlash:0, tagReactDelay:0, warpCooldown:0,
+      remoteX: startX + i * spacing - 16, remoteY: spawnY,
+    };
+  });
+
+  lobby.map = room.settings?.map || 'forest';
+  lobby.time = room.settings?.time || 120;
+
+  G = {
+    running: false, paused: false, canvas, ctx: canvas.getContext('2d'),
+    W, H, MW, WH: WORLD_H, mapDef, platforms,
+    timeLeft: room.timeLeft || lobby.time,
+    frame: 0, activePowers: [], doubleJump: true, powerupsOn: false,
+    speedMult: room.settings?.spd || 1, taggerSpeedBoost: room.settings?.tspd !== false,
+    particles: [], pickups: [], itImmune: room.itImmune || 100,
+    timer: null, cam: {x:0, y:0, scale:1},
+    players: gamePlayers, online: true,
+  };
+  buildHUD(); buildGameBgCanvas(); updateCameraToPlayers(); draw();
+}
+
+let _gameLaunched = false;
+function olLaunchGame(room) {
+  if (_gameLaunched) return;
+  _gameLaunched = true;
+  _cdPhase = 'playing';
+  OL.active = true;
+
+  if (!G) olPrepareGameCanvas(room);
+  else {
+    // Apply final isIt states from room
+    Object.entries(room.players || {}).forEach(([pid, pd]) => {
+      const gp = G.players.find(p => p.onlineId === parseInt(pid));
+      if (gp) { gp.isIt = !!pd.isIt; gp.score = pd.score || 0; }
+    });
+    G.itImmune = room.itImmune || 100;
+  }
+
+  const ov = $('countdown-overlay'), disp = $('cd-display');
+  disp.innerHTML = '<div class="cd-go">GO!</div>'; sfx('go');
+  setTimeout(() => { ov.style.display = 'none'; }, 700);
+
+  G.running = true;
+  G.itImmune = room.itImmune || 100;
+  _startMusic(G.mapDef.id);
+  if (raf) cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(loop);
+
+  // Send my position at 20hz
+  OL.inputTimer = setInterval(olSendState, 50);
+
+  // Host runs the server timer
+  if (OL.isHost) olRunServerTimer();
+
+  // Listen to other players' positions
+  olListenToPlayers();
+
+  // Listen to game events (tags, timer)
+  olListenToGameEvents();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Position sync
+// ─────────────────────────────────────────────────────────────────────────────
+function olSendState() {
+  if (!G || !G.running || !OL.active || !db) return;
+  const me = G.players.find(p => p.isMe);
+  if (!me) return;
+  update(ref(db, `rooms/${OL.code}/players/${OL.playerId}`), {
+    x: Math.round(me.x), y: Math.round(me.y),
+    vx: +me.vx.toFixed(1), vy: +me.vy.toFixed(1),
+    onGround: me.onGround,
+    isIt: me.isIt, score: me.score,
+  });
+
+  // Tag detection — report to Firebase
+  if (G.itImmune <= 0 && me.isIt) {
+    for (const p of G.players) {
+      if (p.isIt || p === me) continue;
+      const dx = me.x - p.x, dy = me.y - p.y;
+      if (Math.abs(dx) < 56 && Math.abs(dy) < 56) {
+        olReportTag(p.onlineId); break;
+      }
+    }
+  }
+  // Lava
+  if (G.mapDef.id === 'magma' && !me.isIt && G.itImmune <= 0) {
+    if (me.y + me.h > G.WH - 90) olReportLavaTag();
+  }
+}
+
+function olListenToPlayers() {
+  const pids = G.players.map(p => p.onlineId).filter(id => id !== OL.playerId);
+  pids.forEach(pid => {
+    const r = ref(db, `rooms/${OL.code}/players/${pid}`);
+    const unsub = onValue(r, snap => {
+      if (!snap.exists() || !G) return;
+      const pd = snap.val();
+      const gp = G.players.find(p => p.onlineId === pid);
+      if (!gp) return;
+      gp.remoteX = pd.x || gp.remoteX;
+      gp.remoteY = pd.y || gp.remoteY;
+      gp.remoteVx = pd.vx; gp.remoteVy = pd.vy;
+      if (pd.isIt !== undefined) gp.isIt = pd.isIt;
+      if (pd.score !== undefined) gp.score = pd.score;
+      gp.walkDir = (pd.vx||0) < -0.3 ? -1 : (pd.vx||0) > 0.3 ? 1 : gp.walkDir;
+    });
+    OL.listeners.push({ ref: r, unsub });
+  });
+}
+
+function olListenToGameEvents() {
+  // Tag events
+  const tagRef = ref(db, `rooms/${OL.code}/lastTag`);
+  const tagUnsub = onValue(tagRef, snap => {
+    if (!snap.exists() || !G) return;
+    const ev = snap.val();
+    if (!ev || !ev.t) return;
+    if (Date.now() - ev.t > 3000) return; // stale
+    G.players.forEach(p => p.isIt = false);
+    const np = G.players.find(p => p.onlineId === ev.newIt);
+    if (np) { np.isIt = true; G.itImmune = 80; sfx('tag'); flashTag(np.def.color); updateHUD(); }
+  });
+  OL.listeners.push({ ref: tagRef, unsub: tagUnsub });
+
+  // Timer & scores (host writes, all read)
+  const timerRef = ref(db, `rooms/${OL.code}/timeLeft`);
+  const timerUnsub = onValue(timerRef, snap => {
+    if (!G || !snap.exists()) return;
+    G.timeLeft = snap.val();
+    updateTimerHUD();
+  });
+  OL.listeners.push({ ref: timerRef, unsub: timerUnsub });
+
+  // Phase changes (game_end, back to lobby)
+  const phaseRef = ref(db, `rooms/${OL.code}/phase`);
+  const phaseUnsub = onValue(phaseRef, snap => {
+    if (!snap.exists()) return;
+    const phase = snap.val();
+    if (phase === 'ended') olHandleGameEnd();
+    // When host triggers play again, all non-host clients see phase='lobby' and return to room
+    if (phase === 'lobby' && OL.active && !OL.isHost) {
+      olReturnToRoom();
+    }
+  });
+  OL.listeners.push({ ref: phaseRef, unsub: phaseUnsub });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tag reporting
+// ─────────────────────────────────────────────────────────────────────────────
+function olReportTag(targetId) {
+  if (!db || G.itImmune > 0) return;
+  G.itImmune = 80; // local cooldown to stop spam
+  update(ref(db, `rooms/${OL.code}`), {
+    lastTag: { tagger: OL.playerId, newIt: targetId, t: Date.now() },
+    itImmune: 80,
+    [`players/${OL.playerId}/isIt`]: false,
+    [`players/${targetId}/isIt`]: true,
+  });
+}
+
+function olReportLavaTag() {
+  if (!db || G.itImmune > 0) return;
+  G.itImmune = 100;
+  const oldIt = G.players.find(p => p.isIt);
+  const updates = { itImmune: 100, lastTag: { tagger: -1, newIt: OL.playerId, t: Date.now() } };
+  if (oldIt) updates[`players/${oldIt.onlineId}/isIt`] = false;
+  updates[`players/${OL.playerId}/isIt`] = true;
+  update(ref(db, `rooms/${OL.code}`), updates);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Host timer
+// ─────────────────────────────────────────────────────────────────────────────
+function olRunServerTimer() {
+  const tick = setInterval(async () => {
+    if (!G || !G.running || !OL.active) { clearInterval(tick); return; }
+    const newTime = Math.max(0, G.timeLeft - 1);
+    G.players.forEach(p => { if (!p.isIt) p.score = (p.score||0) + 1; });
+    // Batch write scores + timer
+    const scoreUpdates = { timeLeft: newTime };
+    G.players.forEach(p => { scoreUpdates[`players/${p.onlineId}/score`] = p.score; });
+    await update(ref(db, `rooms/${OL.code}`), scoreUpdates);
+    if (newTime <= 0) {
+      clearInterval(tick);
+      olEndGame();
+    }
+  }, 1000);
+}
+
+async function olEndGame() {
+  if (!db) return;
+  await update(ref(db, `rooms/${OL.code}`), { phase: 'ended' });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// End game
+// ─────────────────────────────────────────────────────────────────────────────
+let _endHandled = false;
+function olHandleGameEnd() {
+  if (_endHandled) return;
+  _endHandled = true;
+  if (!G) return;
+  G.running = false;
+  clearInterval(OL.inputTimer); OL.inputTimer = null;
+  _stopMusic();
+  if (raf) { cancelAnimationFrame(raf); raf = null; }
+  setTimeout(() => { endGame(); }, 600);
+}
+
+// Play Again — host resets room, everyone returns to waiting room
+window.olPlayAgain = async function() {
+  if (!OL.isHost) return; // only host can trigger
+  // Reset room state in Firebase so all listeners see phase='lobby'
+  const pids = Object.keys(OL.players);
+  const updates = { phase: 'lobby', countdown: 0, timeLeft: lobby.time, lastTag: null };
+  pids.forEach(pid => {
+    updates[`players/${pid}/ready`] = false;
+    updates[`players/${pid}/isIt`] = false;
+    updates[`players/${pid}/score`] = 0;
+  });
+  await update(ref(db, `rooms/${OL.code}`), updates);
+  // Host's own screen returns to room immediately
+  olReturnToRoom();
+};
+
+function olReturnToRoom() {
+  _endHandled = false; _gameLaunched = false; _cdPhase = '';
+  OL.myReady = false;
+  OL.active = false;
+  clearInterval(OL.inputTimer); OL.inputTimer = null;
+  OL.listeners.forEach(l => { try { off(l.ref); } catch{} });
+  OL.listeners = [];
+  if (G) { clearInterval(G.timer); G.running = false; G = null; }
+  if (raf) { cancelAnimationFrame(raf); raf = null; }
+  _stopMusic();
+  // Reset ready button
+  const btn = $('room-ready-btn');
+  if (btn) { btn.textContent = 'READY ✓'; btn.style.background = 'linear-gradient(135deg,#00e5cc,#0ab8a0)'; btn.style.cursor = 'pointer'; btn.disabled = false; }
+  // Show room, hide end/game screens
+  showScreen('title-screen', 'anim-pop'); // base layer
+  $('online-room').style.display = 'flex';
+  // Re-enter room listener
+  olEnterRoom(OL.code);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Leave / teardown
+// ─────────────────────────────────────────────────────────────────────────────
+window.olLeaveRoom = function() { olTeardown(''); };
+window.olCopyCode = function() {
+  navigator.clipboard.writeText(OL.code || '').catch(()=>{});
+  const btn = event.currentTarget;
+  const orig = btn.textContent; btn.textContent = 'COPIED!';
+  setTimeout(()=>{btn.textContent=orig;},1500);
+};
+
+function olTeardown(reason) {
+  clearInterval(OL.inputTimer); OL.inputTimer = null;
+  OL.active = false; _gameLaunched = false; _cdPhase = ''; _endHandled = false;
+
+  // Remove firebase listeners
+  OL.listeners.forEach(l => { try { off(l.ref); } catch{} });
+  OL.listeners = [];
+
+  if (G) { clearInterval(G.timer); G.running = false; G = null; }
+  if (raf) { cancelAnimationFrame(raf); raf = null; }
+  _stopMusic();
+  $('online-room').style.display = 'none';
+  $('countdown-overlay').style.display = 'none';
+  showScreen('title-screen','anim-pop');
+  if (titleRaf) cancelAnimationFrame(titleRaf);
+  titleLastTime = 0; initTitleScreen();
+  setTimeout(()=>_startTitleMusic(), 400);
+  if (reason) setTimeout(()=>alert(reason), 200);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Room player list render
+// ─────────────────────────────────────────────────────────────────────────────
+function olRenderRoomPlayers() {
+  const el = $('room-players'); if (!el) return;
+  el.innerHTML = '';
+  const colors = ['#ff4455','#00e5cc','#ffd600','#b388ff'];
+  Object.entries(OL.players).forEach(([pid, p]) => {
+    if (!p || !p.online) return;
+    const isMe = parseInt(pid) === OL.playerId;
+    const col = p.color || colors[pid] || '#fff';
+    const d = document.createElement('div');
+    d.style.cssText = `display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.25);border:1.5px solid ${p.ready?'rgba(0,229,204,.5)':'rgba(255,255,255,.12)'};border-radius:14px;padding:10px 14px;`;
+    d.innerHTML = `<div style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0;box-shadow:0 0 8px ${col};"></div>
+      <div style="flex:1;font-family:'Baloo 2',cursive;font-size:.82rem;font-weight:900;letter-spacing:2px;color:#fff;">${p.name||`P${parseInt(pid)+1}`}${isMe?` <span style="font-size:.48rem;color:rgba(255,255,255,.35);">(you)</span>`:''}</div>
+      <div style="font-family:'Baloo 2',cursive;font-size:.58rem;font-weight:900;letter-spacing:2px;color:${p.ready?'#00e5cc':'rgba(255,255,255,.3)'};">${p.ready?'READY ✓':'WAITING…'}</div>`;
+    el.appendChild(d);
+  });
+  const count = Object.values(OL.players).filter(p=>p&&p.online).length;
+  olSetStatus(count < 2 ? 'Need at least 2 players' : `${count}/4 players`);
+}
+function olSetStatus(msg) { const el=$('room-status-msg'); if(el) el.textContent=msg; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Patch game functions for online mode
+// ─────────────────────────────────────────────────────────────────────────────
+const _origPhysStep = physStep;
+window.physStep = function(p) {
+  if (G && G.online && !p.isMe) {
+    // Interpolate remote players toward Firebase positions
+    if (p.remoteX !== undefined) {
+      p.x += (p.remoteX - p.x) * 0.22;
+      p.y += (p.remoteY - p.y) * 0.22;
+      if (p.remoteVx !== undefined) { p.vx = p.remoteVx; p.vy = p.remoteVy; }
+      p.walkDir = p.vx < -0.5 ? -1 : p.vx > 0.5 ? 1 : p.walkDir;
+      if (Math.abs(p.vx) > 0.5 && p.onGround) p.legAnim += 0.2;
+    }
+    return;
+  }
+  _origPhysStep(p);
+};
+
+const _origBotThink = botThink;
+window.botThink = function() { if (G && G.online) return; _origBotThink(); };
+
+const _origCheckTag = checkTag;
+window.checkTag = function() {
+  if (G && G.online) { if (G.itImmune > 0) G.itImmune--; return; }
+  _origCheckTag();
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function genRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+</script>
+
+<!-- Online Multiplayer Modals -->
+<div id="online-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;z-index:300;backdrop-filter:blur(16px);">
+  <div style="background:linear-gradient(160deg,#0e9aad 0%,#076070 100%);border:1.5px solid rgba(255,255,255,.18);border-radius:28px;max-width:480px;width:94%;box-shadow:0 40px 100px rgba(0,0,0,.8);overflow:hidden;">
+    <div style="padding:22px 26px 0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div>
+          <div style="font-family:'Baloo 2',cursive;font-size:1.5rem;font-weight:900;letter-spacing:5px;color:#fff;">ONLINE</div>
+          <div style="font-size:.44rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:2px;">Play with friends anywhere</div>
+        </div>
+        <button onclick="closeOnline()" style="background:rgba(0,0,0,.22);border:1.5px solid rgba(255,255,255,.2);border-radius:50px;color:rgba(255,255,255,.7);font-family:'Baloo 2',cursive;font-size:.55rem;font-weight:900;letter-spacing:2px;padding:5px 13px;cursor:pointer;">✕</button>
+      </div>
+
+      <div style="display:flex;border-bottom:1.5px solid rgba(255,255,255,.12);margin-bottom:16px;">
+        <button id="ol-tab-host" onclick="olTab('host')" style="font-family:'Baloo 2',cursive;font-size:.62rem;font-weight:900;letter-spacing:3px;padding:8px 20px;background:rgba(255,255,255,.14);border:none;border-bottom:3px solid #fff;color:#fff;cursor:pointer;border-radius:8px 8px 0 0;flex:1;">HOST</button>
+        <button id="ol-tab-join" onclick="olTab('join')" style="font-family:'Baloo 2',cursive;font-size:.62rem;font-weight:900;letter-spacing:3px;padding:8px 20px;background:transparent;border:none;border-bottom:3px solid transparent;color:rgba(255,255,255,.4);cursor:pointer;border-radius:8px 8px 0 0;flex:1;">JOIN</button>
+      </div>
+    </div>
+
+    <div id="ol-panel-host" style="padding:0 26px 24px;">
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+        <div><div style="font-size:.46rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:5px;">YOUR NAME</div>
+          <input id="ol-host-name" type="text" maxlength="12" placeholder="Player 1" style="width:100%;font-family:'Baloo 2',cursive;font-size:.82rem;font-weight:900;letter-spacing:2px;padding:10px 12px;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.2);border-radius:10px;color:#fff;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='rgba(255,255,255,.6)'" onblur="this.style.borderColor='rgba(255,255,255,.2)'"/></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div><div style="font-size:.46rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:5px;">MAP</div>
+            <select id="ol-host-map" style="width:100%;font-family:'Baloo 2',cursive;font-size:.7rem;font-weight:900;padding:9px 8px;background:rgba(0,0,0,.5);border:1.5px solid rgba(255,255,255,.2);border-radius:10px;color:#fff;outline:none;">
+              <option value="forest">Forest</option><option value="snow">Christmas</option><option value="desert">Desert</option><option value="void">The Void</option><option value="magma">Core Magma</option>
+            </select></div>
+          <div><div style="font-size:.46rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:5px;">TIME</div>
+            <select id="ol-host-time" style="width:100%;font-family:'Baloo 2',cursive;font-size:.7rem;font-weight:900;padding:9px 8px;background:rgba(0,0,0,.5);border:1.5px solid rgba(255,255,255,.2);border-radius:10px;color:#fff;outline:none;">
+              <option value="60">1 min</option><option value="120" selected>2 min</option><option value="180">3 min</option><option value="300">5 min</option>
+            </select></div>
+        </div>
+      </div>
+      <button onclick="olHostGame()" style="width:100%;font-family:'Baloo 2',cursive;font-size:.85rem;font-weight:900;letter-spacing:4px;padding:14px;background:linear-gradient(135deg,#00e5cc,#0ab8a0);border:none;border-radius:12px;color:#fff;cursor:pointer;" onmouseenter="this.style.filter='brightness(1.1)'" onmouseleave="this.style.filter=''">CREATE ROOM</button>
+      <div id="ol-host-err" style="font-family:'Baloo 2',cursive;font-size:.55rem;font-weight:700;letter-spacing:2px;color:#ff7777;text-align:center;margin-top:8px;min-height:18px;"></div>
+    </div>
+
+    <div id="ol-panel-join" style="padding:0 26px 24px;display:none;">
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+        <div><div style="font-size:.46rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:5px;">YOUR NAME</div>
+          <input id="ol-join-name" type="text" maxlength="12" placeholder="Player 2" style="width:100%;font-family:'Baloo 2',cursive;font-size:.82rem;font-weight:900;letter-spacing:2px;padding:10px 12px;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.2);border-radius:10px;color:#fff;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='rgba(255,255,255,.6)'" onblur="this.style.borderColor='rgba(255,255,255,.2)'"/></div>
+        <div><div style="font-size:.46rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:5px;">ROOM CODE</div>
+          <input id="ol-join-code" type="text" maxlength="6" placeholder="ABCD12" style="width:100%;font-family:'Baloo 2',cursive;font-size:1.6rem;font-weight:900;letter-spacing:8px;text-align:center;padding:12px;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.2);border-radius:10px;color:#fff;outline:none;text-transform:uppercase;box-sizing:border-box;" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')" onkeydown="if(event.key==='Enter')olJoinGame()" onfocus="this.style.borderColor='rgba(255,255,255,.6)'" onblur="this.style.borderColor='rgba(255,255,255,.2)'"/></div>
+      </div>
+      <button onclick="olJoinGame()" style="width:100%;font-family:'Baloo 2',cursive;font-size:.85rem;font-weight:900;letter-spacing:4px;padding:14px;background:linear-gradient(135deg,#ffd600,#ffaa00);border:none;border-radius:12px;color:#1a1000;cursor:pointer;" onmouseenter="this.style.filter='brightness(1.1)'" onmouseleave="this.style.filter=''">JOIN ROOM</button>
+      <div id="ol-join-err" style="font-family:'Baloo 2',cursive;font-size:.55rem;font-weight:700;letter-spacing:2px;color:#ff7777;text-align:center;margin-top:8px;min-height:18px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Online Waiting Room -->
+<div id="online-room" style="position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;z-index:300;backdrop-filter:blur(16px);">
+  <div style="background:linear-gradient(160deg,#0e9aad 0%,#076070 100%);border:1.5px solid rgba(255,255,255,.18);border-radius:28px;max-width:520px;width:94%;box-shadow:0 40px 100px rgba(0,0,0,.8);padding:26px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div>
+        <div style="font-family:'Baloo 2',cursive;font-size:1.1rem;font-weight:900;letter-spacing:4px;color:#fff;">ROOM</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+          <div style="font-family:'Baloo 2',cursive;font-size:2rem;font-weight:900;letter-spacing:10px;color:#ffd600;" id="room-code-display">------</div>
+          <button onclick="olCopyCode()" style="background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.4);border-radius:8px;color:#ffd600;font-family:'Baloo 2',cursive;font-size:.46rem;font-weight:900;letter-spacing:2px;padding:5px 9px;cursor:pointer;">COPY</button>
+        </div>
+        <div style="font-size:.42rem;color:rgba(255,255,255,.38);letter-spacing:2px;margin-top:1px;">Share with friends</div>
+      </div>
+      <button onclick="olLeaveRoom()" style="background:rgba(255,80,80,.15);border:1px solid rgba(255,80,80,.35);border-radius:50px;color:rgba(255,120,120,.8);font-family:'Baloo 2',cursive;font-size:.52rem;font-weight:900;letter-spacing:2px;padding:8px 16px;cursor:pointer;">LEAVE</button>
+    </div>
+    <div id="room-players" style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;min-height:70px;"></div>
+    <div id="room-settings-row" style="display:none;background:rgba(0,0,0,.2);border-radius:12px;padding:12px;margin-bottom:14px;">
+      <div style="font-family:'Baloo 2',cursive;font-size:.48rem;font-weight:900;letter-spacing:3px;color:rgba(255,255,255,.45);margin-bottom:8px;">SETTINGS (host only)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div><div style="font-size:.42rem;color:rgba(255,255,255,.38);letter-spacing:2px;margin-bottom:3px;">MAP</div>
+          <select id="room-map" onchange="olUpdateSettings()" style="width:100%;font-family:'Baloo 2',cursive;font-size:.62rem;font-weight:900;padding:7px 8px;background:rgba(0,0,0,.4);border:1.5px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;outline:none;">
+            <option value="forest">Forest</option><option value="snow">Christmas</option><option value="desert">Desert</option><option value="void">The Void</option><option value="magma">Core Magma</option>
+          </select></div>
+        <div><div style="font-size:.42rem;color:rgba(255,255,255,.38);letter-spacing:2px;margin-bottom:3px;">TIME</div>
+          <select id="room-time" onchange="olUpdateSettings()" style="width:100%;font-family:'Baloo 2',cursive;font-size:.62rem;font-weight:900;padding:7px 8px;background:rgba(0,0,0,.4);border:1.5px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;outline:none;">
+            <option value="60">1 min</option><option value="120" selected>2 min</option><option value="180">3 min</option><option value="300">5 min</option>
+          </select></div>
+      </div>
+    </div>
+    <div id="room-status-msg" style="font-family:'Baloo 2',cursive;font-size:.6rem;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,.45);text-align:center;margin-bottom:12px;min-height:20px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button id="room-ready-btn" onclick="olReady()" style="flex:1;font-family:'Baloo 2',cursive;font-size:.85rem;font-weight:900;letter-spacing:4px;padding:14px;background:linear-gradient(135deg,#00e5cc,#0ab8a0);border:none;border-radius:12px;color:#fff;cursor:pointer;">READY ✓</button>
+      <button id="room-start-btn" onclick="olForceStart()" style="display:none;font-family:'Baloo 2',cursive;font-size:.72rem;font-weight:900;letter-spacing:3px;padding:14px 16px;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.2);border-radius:12px;color:#fff;cursor:pointer;">START ▶</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
