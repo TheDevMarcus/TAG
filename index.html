@@ -4013,7 +4013,7 @@ function olEnterRoom(code) {
     $('room-time').value = String(lobby.time);
   }
 
-  // Listen to room changes
+  // Single root listener — handles all phase transitions cleanly
   const roomRef = ref(db, `rooms/${code}`);
   const unsub = onValue(roomRef, snap => {
     if (!snap.exists()) { olTeardown('Room closed.'); return; }
@@ -4028,13 +4028,80 @@ function olEnterRoom(code) {
       if ($('room-time')) $('room-time').value = String(lobby.time);
     }
 
-    olRenderRoomPlayers();
+    const phase = room.phase || 'lobby';
 
-    if (room.phase === 'countdown' && !OL.active) {
-      olBeginCountdown(room);
+    // ── Lobby: show player list ──────────────────────────────────────────────
+    if (phase === 'lobby') {
+      olRenderRoomPlayers();
     }
-    if (room.phase === 'playing' && !OL.active) {
-      olLaunchGame(room);
+
+    // ── Starting: show countdown, prep canvas ────────────────────────────────
+    if (phase === 'starting' && !_cdPhase) {
+      _cdPhase = 'starting';
+      $('online-room').style.display = 'none';
+      showScreen('game-screen', 'anim-pop');
+      olPrepareGameCanvas(room);
+      const ov = $('countdown-overlay'), disp = $('cd-display');
+      ov.style.display = 'flex';
+
+      // Count down locally from the server's startAt timestamp
+      const startAt = room.startAt || (Date.now() + 3000);
+      disp.innerHTML = `<div class="cd-num">3</div>`;
+      sfx('countdown');
+      const cdTick = setInterval(() => {
+        const remaining = Math.ceil((startAt - Date.now()) / 1000);
+        if (remaining > 0) {
+          disp.innerHTML = `<div class="cd-num">${remaining}</div>`;
+          sfx('countdown');
+        } else {
+          clearInterval(cdTick);
+          disp.innerHTML = '<div class="cd-go">GO!</div>';
+          sfx('go');
+          setTimeout(() => { ov.style.display = 'none'; }, 700);
+        }
+      }, 1000);
+    }
+
+    // ── Playing: launch game ─────────────────────────────────────────────────
+    if (phase === 'playing' && !_gameLaunched) {
+      _gameLaunched = true;
+      OL.active = true;
+      _cdPhase = 'playing';
+
+      // Make sure canvas is ready (might have missed 'starting' phase)
+      if (!G) olPrepareGameCanvas(room);
+      else {
+        Object.entries(room.players || {}).forEach(([pid, pd]) => {
+          const gp = G.players.find(p => p.onlineId === parseInt(pid));
+          if (gp) { gp.isIt = !!pd.isIt; gp.score = pd.score || 0; }
+        });
+        G.itImmune = room.itImmune || 100;
+      }
+
+      $('online-room').style.display = 'none';
+      showScreen('game-screen', 'anim-pop');
+      const ov = $('countdown-overlay'), disp = $('cd-display');
+      // Clear any leftover countdown
+      ov.style.display = 'none';
+
+      G.running = true;
+      G.itImmune = room.itImmune || 100;
+      _startMusic(G.mapDef.id);
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(loop);
+
+      OL.inputTimer = setInterval(olSendState, 50);
+      if (OL.isHost) olRunServerTimer();
+      olListenToPlayers();
+      olListenToGameEvents();
+    }
+
+    // ── Ended ────────────────────────────────────────────────────────────────
+    if (phase === 'ended') olHandleGameEnd();
+
+    // ── Back to lobby after play again ───────────────────────────────────────
+    if (phase === 'lobby' && (OL.active || _gameLaunched || _cdPhase)) {
+      if (!OL.isHost) olReturnToRoom();
     }
   });
   OL.listeners.push({ ref: roomRef, unsub });
@@ -4082,53 +4149,31 @@ async function olStartGame() {
   const pids = Object.keys(OL.players).map(Number);
   const itId = pids[Math.floor(Math.random() * pids.length)];
 
-  // Set isIt on players
-  const playerUpdates = {};
-  pids.forEach(pid => { playerUpdates[`players/${pid}/isIt`] = pid === itId; playerUpdates[`players/${pid}/score`] = 0; });
-  playerUpdates['phase'] = 'countdown';
-  playerUpdates['countdown'] = 3;
-  playerUpdates['timeLeft'] = lobby.time;
-  playerUpdates['itImmune'] = 100;
-  await update(ref(db, `rooms/${OL.code}`), playerUpdates);
-
-  // Countdown 3→2→1 then set phase=playing
-  let n = 3;
-  const tick = setInterval(async () => {
-    n--;
-    if (n > 0) {
-      await update(ref(db, `rooms/${OL.code}`), { countdown: n });
-    } else {
-      clearInterval(tick);
-      await update(ref(db, `rooms/${OL.code}`), { phase: 'playing', countdown: 0 });
-    }
-  }, 1000);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Countdown display
-// ─────────────────────────────────────────────────────────────────────────────
-let _cdPhase = '';
-function olBeginCountdown(room) {
-  if (_cdPhase === 'countdown') return;
-  _cdPhase = 'countdown';
-  const ov = $('countdown-overlay'), disp = $('cd-display');
-  ov.style.display = 'flex';
-  $('online-room').style.display = 'none';
-  showScreen('game-screen', 'anim-pop');
-
-  // Pre-build the game canvas so it's ready
-  olPrepareGameCanvas(room);
-
-  const unsub = onValue(ref(db, `rooms/${OL.code}/countdown`), snap => {
-    const n = snap.val();
-    if (n > 0) { disp.innerHTML = `<div class="cd-num">${n}</div>`; sfx('countdown'); }
+  // Write everything in ONE update so all clients see it atomically
+  // startAt = 3 seconds from now — clients countdown locally from this
+  const startAt = Date.now() + 3200;
+  const updates = {
+    phase: 'starting',
+    startAt,
+    timeLeft: lobby.time,
+    itImmune: 100,
+    lastTag: null,
+  };
+  pids.forEach(pid => {
+    updates[`players/${pid}/isIt`] = pid === itId;
+    updates[`players/${pid}/score`] = 0;
+    updates[`players/${pid}/x`] = 0;
+    updates[`players/${pid}/y`] = 0;
   });
-  OL.listeners.push({ ref: ref(db, `rooms/${OL.code}/countdown`), unsub });
+  await update(ref(db, `rooms/${OL.code}`), updates);
+
+  // Host switches room to 'playing' right when the countdown ends
+  setTimeout(async () => {
+    await update(ref(db, `rooms/${OL.code}`), { phase: 'playing' });
+  }, 3200);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Launch game
-// ─────────────────────────────────────────────────────────────────────────────
+let _cdPhase = '';
 function olPrepareGameCanvas(room) {
   const canvas = $('gameCanvas');
   canvas.width = window.innerWidth; canvas.height = window.innerHeight;
@@ -4180,44 +4225,6 @@ function olPrepareGameCanvas(room) {
 }
 
 let _gameLaunched = false;
-function olLaunchGame(room) {
-  if (_gameLaunched) return;
-  _gameLaunched = true;
-  _cdPhase = 'playing';
-  OL.active = true;
-
-  if (!G) olPrepareGameCanvas(room);
-  else {
-    // Apply final isIt states from room
-    Object.entries(room.players || {}).forEach(([pid, pd]) => {
-      const gp = G.players.find(p => p.onlineId === parseInt(pid));
-      if (gp) { gp.isIt = !!pd.isIt; gp.score = pd.score || 0; }
-    });
-    G.itImmune = room.itImmune || 100;
-  }
-
-  const ov = $('countdown-overlay'), disp = $('cd-display');
-  disp.innerHTML = '<div class="cd-go">GO!</div>'; sfx('go');
-  setTimeout(() => { ov.style.display = 'none'; }, 700);
-
-  G.running = true;
-  G.itImmune = room.itImmune || 100;
-  _startMusic(G.mapDef.id);
-  if (raf) cancelAnimationFrame(raf);
-  raf = requestAnimationFrame(loop);
-
-  // Send my position at 20hz
-  OL.inputTimer = setInterval(olSendState, 50);
-
-  // Host runs the server timer
-  if (OL.isHost) olRunServerTimer();
-
-  // Listen to other players' positions
-  olListenToPlayers();
-
-  // Listen to game events (tags, timer)
-  olListenToGameEvents();
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Position sync
@@ -4283,7 +4290,7 @@ function olListenToGameEvents() {
   });
   OL.listeners.push({ ref: tagRef, unsub: tagUnsub });
 
-  // Timer & scores (host writes, all read)
+  // Timer (host writes every second, all clients read)
   const timerRef = ref(db, `rooms/${OL.code}/timeLeft`);
   const timerUnsub = onValue(timerRef, snap => {
     if (!G || !snap.exists()) return;
@@ -4291,19 +4298,7 @@ function olListenToGameEvents() {
     updateTimerHUD();
   });
   OL.listeners.push({ ref: timerRef, unsub: timerUnsub });
-
-  // Phase changes (game_end, back to lobby)
-  const phaseRef = ref(db, `rooms/${OL.code}/phase`);
-  const phaseUnsub = onValue(phaseRef, snap => {
-    if (!snap.exists()) return;
-    const phase = snap.val();
-    if (phase === 'ended') olHandleGameEnd();
-    // When host triggers play again, all non-host clients see phase='lobby' and return to room
-    if (phase === 'lobby' && OL.active && !OL.isHost) {
-      olReturnToRoom();
-    }
-  });
-  OL.listeners.push({ ref: phaseRef, unsub: phaseUnsub });
+  // Note: phase changes (ended, lobby) are handled by the root olEnterRoom listener
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
